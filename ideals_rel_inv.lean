@@ -58,23 +58,109 @@ a * e = a ∧
 
 -/
 
+-------------------------------
+-- Conversion from a strictly increasing sequence of ideals 
+-- to a strictly increasing sequence of submodules over the scalar field
+
+def submodule_KA_of_AA_smul {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] [hKA : algebra K A] (submod_AA : submodule A A) 
+  {k : K} {a : A} (h_sm_a : a ∈ submod_AA.carrier) : 
+  (((algebra.to_ring_hom k) : A) * a) ∈ submod_AA.carrier := 
+  begin
+    have h : ∀ (aa : A), aa * a ∈ submod_AA.carrier, 
+    begin
+      intros aa, exact submod_AA.smul_mem' aa h_sm_a,
+    end,
+    exact h (algebra.to_ring_hom k),
+end
+
+def submodule_KA_of_AA {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] (hKA : algebra K A) (submod_AA : submodule A A) : 
+  submodule K A := 
+  begin
+    have add_mem' : ∀ (a b : A), a ∈ submod_AA.carrier → 
+    b ∈ submod_AA.carrier → a + b ∈ submod_AA.carrier,
+    begin
+      intros a b ha hb,
+      exact submod_AA.add_mem' ha hb,
+    end,
+    have smul' : ∀ (k : K) (a : A), a ∈ submod_AA.carrier → 
+    (((algebra.to_ring_hom k) : A) * a) ∈ submod_AA.carrier,
+    begin
+       intros k a,
+       exact submodule_KA_of_AA_smul submod_AA,
+    end,
+     have smul'' : ∀ (k : K) (a : A), a ∈ submod_AA.carrier → 
+    (k • a) ∈ submod_AA.carrier,
+    begin
+       intros k a h0,
+       rw algebra.smul_def',
+       exact smul' k a h0,
+    end,
+    exact { carrier := submod_AA.carrier,
+      add_mem' := add_mem',
+      zero_mem' := submod_AA.zero_mem',
+      smul_mem' := smul'' },
+end
+
+lemma submodule_AA_lt_of_subset {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] (hKA : algebra K A) {A1 A2 : submodule A A} 
+    : A1 < A2 ↔ submodule.carrier A1 ⊂ A2.carrier :=
+  begin
+    exact set_like.coe_ssubset_coe,
+  end
+
+lemma submodule_KA_lt_of_subset {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] (hKA : algebra K A) {A1 A2 : submodule K A} 
+    : submodule.carrier A1 ⊂ A2.carrier → A1 < A2 :=
+  begin
+    rw ← set_like.coe_ssubset_coe, intros h, exact h,
+  end
+
+lemma eq_carrier {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] (hKA : algebra K A) (submod_AA : submodule A A) :
+  submod_AA.carrier = (submodule_KA_of_AA hKA submod_AA).carrier :=
+  begin
+    let g := submod_AA.carrier,
+    let gg := (submodule_KA_of_AA hKA submod_AA).carrier,
+    --simp at gg {proj := true},
+    unfold submodule_KA_of_AA,
+  end
+
+lemma submodule_KA_lt_of_ideal_lt {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] (hKA : algebra K A) {A1 A2 : submodule A A} 
+    : A1 < A2 → (submodule_KA_of_AA hKA A1) < (submodule_KA_of_AA hKA A2) :=
+  begin
+    intros hA1_lt_A2,
+    let ss_A1_A2 := (submodule_AA_lt_of_subset hKA).1 hA1_lt_A2,
+    rw eq_carrier hKA at ss_A1_A2, rw eq_carrier hKA at ss_A1_A2,
+    exact (submodule_KA_lt_of_subset hKA ss_A1_A2) ,
+  end
+
+def submodule_seq_KA_lt_of_ideal_lt {K : Type*} [hK : field K] {A : Type*} 
+  [hA : comm_ring A] [hKA : algebra K A] (f : ℕ → ideal A) :  ℕ → submodule K A :=
+begin
+  intros n,
+  exact submodule_KA_of_AA hKA (f n),
+end
+
 /-
-The following lemma that says that a strictly increasing sequence of ideals
-is also a strictly increasing sequence of submodules.
-It is an obvious fact, but I could not find suitable definitions and lemmas in Mathlib
+The following lemma says that a strictly increasing sequence of ideals
+is also a strictly increasing sequence of submodules over the scalar field.
 -/
 lemma ex_strict_mono_submodule_of_ideal {K : Type*} [hK : field K] {A : Type*} 
   [hA : comm_ring A] [hKA : algebra K A] (f : ℕ → ideal A) (f_strict_mono : strict_mono f): 
   ∃ (g : ℕ → submodule K A), strict_mono g := 
   begin
-  -- The submodules should use the same carrier as the ideals.
-  -- Ideals are subalgebras of the algebra A with A also acting as the scalar ring.
-  -- These subalgebras should first be converted to the field K as the scalar ring.
-  -- Prove that properties of the submodule are fultilfilled.
-  -- These subalgebras can then be converted to submodules by 'subalgebra.to_submodule'.
-  -- The strict order is maintained by the subset order of the carrier.
-sorry
+    unfold strict_mono at *,
+    use submodule_seq_KA_lt_of_ideal_lt f,
+    intros n1 n2 h_lt,
+    unfold submodule_seq_KA_lt_of_ideal_lt,
+    apply submodule_KA_lt_of_ideal_lt,
+    exact f_strict_mono h_lt,
 end
+
+----------------------------
 
 section inv_a
 
